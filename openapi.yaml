@@ -1,0 +1,101 @@
+openapi: 3.1.0
+servers:
+  - url: "https://hacker-news.firebaseio.com/v0"
+
+info:
+  title: Hacker News API
+  version: v0
+  description: |
+    In partnership with Firebase, Hacker News makes the public Hacker News data
+    available in near real time.
+    Firebase enables easy access from Android, iOS and the web. Servers aren't left out.
+
+    The v0 API is essentially a dump of our in-memory data structures.
+    "We know, what works great locally in memory isn't so hot over the network.
+    Many of the awkward things are just the way HN works internally...
+    It's not the ideal public API, but it's the one we could release in the time we had"
+
+    Want to know the total number of comments on an article?
+    Traverse the tree and count. Want to know the children of an item?
+    Load the item and get their IDs, then load them.
+    The newest page? Starts at item maxid and walks backward, keeping only the top level stories.
+    Same for Ask, Show, etc.
+  contact:
+    name: Y Combinator API Team
+    email: "api@ycombinator.com"  
+  license:
+    name: MIT
+    url: https://github.com/HackerNews/API/blob/master/LICENSE
+
+externalDocs:
+  url: https://github.com/HackerNews/API
+  description: GitHub Repository
+
+components:
+  schemas:
+    GetItem:
+      type: object
+      properties:
+        id:
+          summary: "The item's unique id"
+          type: integer
+        type:
+          summary: |
+            The type of item. One of "job", "story", "comment", "poll", or "pollopt"
+          type: string
+        deleted:
+          summary: "true if the item is deleted"
+          type: boolean
+        by:
+          summary: "The username of the item's author"
+          type: string
+        time:
+          summary: "Creation date of the item, in Unix Time"
+          type: integer
+        text:
+          summary: "The comment, story or poll text. HTML"
+          type: string
+        dead:
+          summary: "true if the item is dead"
+          type: boolean
+        parent:
+          summary: "The comment's parent: either another comment or the relevant story"
+          type: integer
+        poll:
+          summary: "The pollopt's associated poll"
+          type: integer
+        kids:
+          summary: "The IDs of the item's comments, in ranked display order"
+          type: array
+        url:
+          summary: "The URL of the story"
+          type: string
+        score:
+          summary: "The story's score, or the votes for a pollopt"
+          type: integer
+        title:
+          summary: "The title of the story, poll or job. HTML"
+          type: string
+        parts:
+          summary: "A list of related pollopts, in display order"
+          type: array
+        descendants:
+          summary: "In the case of stories or polls, the total comment count."
+          type: array
+    GetUser:
+      properties:
+        id:
+          summary: "User's  unique id"
+          type: string
+        created:
+          description: Creation date of the user, in Unix Time
+          type: integer
+        karma:
+          description: The user's karma
+          type: integer
+        about:
+          description: The user's optional self-description. HTML
+          type: string
+        submitted:
+          description: List of the user's stories, polls and comments
+          type: array
