@@ -75,8 +75,8 @@ class Story(Item):
 
 class Comment(Item):
     by : str
-    kids : Sequence[int]
-    parent : int | None = None
+    kids : Sequence[int] | None = None
+    parent : int
     text : str
     time : int
     type : ItemType = ItemType.COMMENT

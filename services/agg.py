@@ -1,7 +1,7 @@
 from core.datatypes.sequence import Sequence
-from inspector import Inspector
 
-from models import (
+from services.inspector import Inspector
+from models.base import (
     ItemT
     , Job
     , HackerT

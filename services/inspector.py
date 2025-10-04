@@ -1,6 +1,6 @@
 import requests
 
-from models import (
+from models.base import (
     Item
     , User
     , Story

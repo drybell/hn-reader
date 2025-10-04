@@ -1,6 +1,6 @@
 from core.datatypes.sequence import Sequence
 
-from models import (
+from models.base import (
     ItemT
     , Job
     , HackerT
@@ -9,8 +9,8 @@ from models import (
     , Updated
 )
 
-from inspector import Inspector
-from agg import Aggregator
+from services.inspector import Inspector
+from services.agg import Aggregator
 
 from typing import Callable
 
