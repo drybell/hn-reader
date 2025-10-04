@@ -1,27 +1,27 @@
 import loader
-from core.datatypes.sequence import Sequence
 
-import services.inspector as inspector
-import services.agg as agg
+from core.datatypes.sequence import Sequence
+from core.utils.timer import Timer
+
 import services.client as client
 
-#item = inspector.Inspector.get_item(45467717)
+@Timer.timed
+def run(PASSES):
+    top = client.HNClient.best()
 
-#top = agg.PAggregator.get_jobs()
+    print(f"# Kids: {top.kids.length()}")
 
-top = client.HNClient.best()
+    curr = top
+    descendants = Sequence([curr.kids])
 
-print(f"# Kids: {top.kids.length()}")
+    for i in range(PASSES):
+        curr = client.HNClient.expand(curr.kids)
+        descendants.append(
+            curr.kids
+        )
 
-curr = top
-descendants = Sequence([curr.kids])
+    print(f"{PASSES} Passes: {descendants.flatten().length()}")
+    return top, descendants
 
-PASSES = 3
-
-for i in range(PASSES):
-    curr = client.HNClient.expand(curr.kids)
-    descendants.append(
-        curr.kids
-    )
-
-print(f"{PASSES} Passes: {descendants.flatten().length()}")
+d = run(3)
+elapsed = Timer.times.first()
