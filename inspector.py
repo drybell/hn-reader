@@ -175,7 +175,7 @@ class Inspector:
 
     @staticmethod
     @parse_model
-    def jobs_stories() -> Ids:
+    def job_stories() -> Ids:
         return Inspector.get(ItemPath.JOBSTORIES)
 
     @staticmethod

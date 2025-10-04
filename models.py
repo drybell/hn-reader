@@ -106,10 +106,6 @@ class User(BaseModel):
         default=None, description="Sequence of the user's stories, polls and comments"
     )
 
-class Updates(BaseModel):
-    items    : Sequence[StoryId]
-    profiles : Sequence[UserId]
-
 ItemT = (
     Story
     | Comment
@@ -119,3 +115,12 @@ ItemT = (
 
 class ItemWrapper(BaseModel):
     item : ItemT = Field(union_mode='left_to_right')
+
+class Updates(BaseModel):
+    items    : Sequence[StoryId]
+    profiles : Sequence[UserId]
+
+class Updated(BaseModel):
+    items    : Sequence[ItemT]
+    profiles : Sequence[User]
+
