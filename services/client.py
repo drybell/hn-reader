@@ -7,6 +7,7 @@ from models.base import (
     , ResponseError
     , StoryId
     , Updated
+    , Comment
 )
 
 from services.inspector import Inspector
@@ -24,8 +25,14 @@ class HNClient:
     max_procs = 24
     batches   = 20
 
+    # TODO: probably a more elegant solution than doing this
+    # manual delegation. for now it works, but in the future
+    # this should be abstracted or re-done
     @staticmethod
-    def _do_work(InspectorF : Callable, **kw) -> Sequence[ItemT]:
+    def _call_inspector_then_process(
+        InspectorF : Callable
+        , **kw
+    ):
         # TODO: more dynamic aggregator comparison
         if HNClient.AggF == Aggregator.pagg:
             return HNClient.AggF(
@@ -39,6 +46,37 @@ class HNClient:
                 InspectorF
                 , **kw
             )
+
+    @staticmethod
+    def _process(data : Sequence[StoryId], **kw):
+        if HNClient.AggF == Aggregator.pagg:
+            return Aggregator.pagg_only_data(
+                data
+                , **kw
+                , max_procs=HNClient.max_procs
+                , batches=HNClient.batches
+            )
+        else:
+            return Aggregator.sagg_only_data(
+                data
+                , **kw
+            )
+
+    @staticmethod
+    def _do_work(
+        InspectorF : Callable | None = None
+        , data     : Sequence[StoryId] | None = None
+        , **kw
+    ) -> Sequence[ItemT]:
+        if InspectorF is not None:
+            return HNClient._call_inspector_then_process(
+                InspectorF, **kw
+            )
+
+        if data is not None:
+            return HNClient._process(data, **kw)
+
+        raise Exception(f"Inspector function or `data` Sequence required")
 
     @staticmethod
     def new() -> Sequence[ItemT]:
@@ -68,6 +106,26 @@ class HNClient:
     def jobs() -> Sequence[Job]:
         return HNClient._do_work(
             Inspector.job_stories
+        )
+
+    @staticmethod
+    def expand(
+        item : ItemT | Sequence[StoryId]
+        , attr='kids'
+        , depth=1
+    ) -> Sequence[Comment]:
+        # TODO: depth
+        match item:
+            case Sequence():
+                data = item
+            case _:
+                data = getattr(item, attr)
+
+        if data is None or not data:
+            return Sequence([])
+
+        return HNClient._do_work(
+            data=data
         )
 
     @staticmethod

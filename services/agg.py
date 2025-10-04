@@ -78,6 +78,22 @@ class Aggregator:
             , **kw
         )
 
+    @staticmethod
+    def pagg_only_data(
+        data : Sequence[StoryId]
+        , **kw
+    ) -> Sequence[ItemT]:
+        return Tasks.parallel(
+            data, **kw
+        )
+
+    @staticmethod
+    def sagg_only_data(
+        data : Sequence[StoryId]
+        , **kw
+    ) -> Sequence[ItemT]:
+        return data.apply(Inspector.get_item)
+
 # ------------------ Testing Aggregators -------------------- #
 
 class SAggregator:

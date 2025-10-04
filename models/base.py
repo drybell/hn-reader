@@ -81,6 +81,15 @@ class Comment(Item):
     time : int
     type : ItemType = ItemType.COMMENT
 
+class DeletedComment(Comment):
+    by : str
+    kids : Sequence[int] | None = None
+    parent : int
+    text : None = None
+    deleted : bool = True
+    time : int
+    type : ItemType = ItemType.COMMENT
+
 class Job(Item):
     by : str
     kids : Sequence[int] | None = None
@@ -108,6 +117,7 @@ class User(BaseModel):
 
 ItemT = (
     Story
+    | DeletedComment
     | Comment
     | Job
     | Item
