@@ -1,7 +1,7 @@
 from core.datatypes.sequence import Sequence
 from core.datatypes.timestamp import Timestamp
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from enum import StrEnum, IntEnum
 
@@ -99,7 +99,7 @@ class Presets:
         )
 
 class SeedFlag(BaseModel):
-    value : Presets.SeedConfig | int
+    value : Presets.SeedConfig | int = Field(union_mode='left_to_right')
 
 class SeedConfig(BaseModel):
     level        : Sequence[SeedLevel] | SeedLevel
