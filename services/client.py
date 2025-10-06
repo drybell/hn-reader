@@ -109,6 +109,10 @@ class HNClient:
         )
 
     @staticmethod
+    def get(id : int | str) -> ItemT:
+        return Inspector.get_item(id)
+
+    @staticmethod
     def expand(
         item : ItemT | Sequence[StoryId]
         , attr='kids'

@@ -3,7 +3,7 @@ from core.datatypes.timestamp import Timestamp
 
 from pydantic import BaseModel, Field, computed_field
 from enum import StrEnum
-from typing import TypeVar, Any
+from typing import TypeVar, Any, Literal
 
 HackerT  = TypeVar("T", bound=BaseModel)
 StoryId  = TypeVar("StoryId", bound=int)
@@ -67,11 +67,11 @@ class Item(BaseModel):
 class Story(Item):
     by : str
     descendants : int
-    kids : Sequence[int]
+    kids : Sequence[int] | None = None
     score : int
     time : int
     title : str
-    type : ItemType = ItemType.STORY
+    type : Literal[ItemType.STORY] = ItemType.STORY
 
 class Comment(Item):
     by : str
@@ -79,7 +79,7 @@ class Comment(Item):
     parent : int
     text : str
     time : int
-    type : ItemType = ItemType.COMMENT
+    type : Literal[ItemType.COMMENT] = ItemType.COMMENT
 
 class DeletedComment(Comment):
     by : str
@@ -88,7 +88,7 @@ class DeletedComment(Comment):
     text : None = None
     deleted : bool = True
     time : int
-    type : ItemType = ItemType.COMMENT
+    type : Literal[ItemType.COMMENT] = ItemType.COMMENT
 
 class Job(Item):
     by : str
@@ -97,7 +97,7 @@ class Job(Item):
     time : int
     title : str
     url : str | None = None
-    type : ItemType = ItemType.JOB
+    type : Literal[ItemType.JOB] = ItemType.JOB
 
 class Ids(BaseModel):
     stories : Sequence[StoryId]

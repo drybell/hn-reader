@@ -4,7 +4,7 @@ from models.db.base import (
 )
 
 from models.base import (
-    ItemT, User
+    ItemWrapper, ItemT, User
 )
 
 from typing import Any
@@ -12,8 +12,14 @@ from typing import Any
 class Translator:
 
     @staticmethod
-    def _translate(obj, Model):
-        return Model(**obj.model_dump())
+    def _translate(obj, Model) -> Any | None:
+        if obj is None:
+            return None
+
+        if Model == ItemWrapper:
+            return Model(item=obj.model_dump())
+        else:
+            return Model(**obj.model_dump())
 
     class DB:
         @staticmethod
@@ -30,10 +36,15 @@ class Translator:
 
     class Generic:
         @staticmethod
-        def item(obj : ItemDB) -> Item:
-            return Translator._translate(
-                obj, Item
+        def item(obj : ItemDB) -> ItemT | None:
+            item = Translator._translate(
+                obj, ItemWrapper
             )
+
+            if item is None:
+                return item
+
+            return item.item
 
         @staticmethod
         def user(obj : UserDB) -> User:
