@@ -31,6 +31,25 @@ class DBConfig(BaseModel):
             path=self.database,
         )
 
+class CeleryConfig(BaseModel):
+    broker  : str
+    backend : str
+
+class RedisConfig(BaseModel):
+    host    : IPv4
+    port    : int
+    broker  : int
+    backend : int
+
+    @computed_field
+    @property
+    def celery_config(self) -> CeleryConfig:
+        base = f"redis://{str(self.host)}:{self.port}/"
+        return CeleryConfig(
+            broker=f"{base}{self.broker}"
+            , backend=f"{base}{self.backend}"
+        )
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file='.env'
@@ -40,3 +59,4 @@ class Settings(BaseSettings):
 
     server : ServerConfig
     db     : DBConfig
+    redis  : RedisConfig

@@ -10,6 +10,7 @@ from models.base import (
 )
 
 from services.translator import Translator
+from services.db import DB
 
 from sqlmodel import Session, select
 from sqlalchemy.exc import IntegrityError
@@ -88,9 +89,23 @@ def create_item(*, session: Session, item : ItemT) -> ItemDB:
         )
 
 def create_user(*, session: Session, user : User) -> UserDB:
-    return session_lifecycle(
-        session, Translator.DB.user(user)
-    )
+    dbuser = Translator.DB.user(user)
+
+    try:
+        return session_lifecycle(
+            session, dbuser
+        )
+    except IntegrityError:
+        session.rollback()
+        existing = get_user_by_id(
+            session=session, id=user.id
+        )
+
+        return update_user(
+            session=session
+            , userdb=existing
+            , update_user=item
+        )
 
 def update_item(
     *
@@ -119,3 +134,32 @@ def update_user(
     )
 
     return session_lifecycle(session, userdb)
+
+def post(
+    data : ItemT | User
+) -> ItemDB | UserDB:
+    with Session(DB.ENGINE) as session:
+        match data:
+            case User():
+                return create_user(session=session, user=data)
+            case _:
+                return create_item(session=session, item=data)
+
+def get(
+    id : int | str
+    , translate : bool = False
+) -> ItemDB | ItemT | UserDB | User:
+    with Session(DB.ENGINE) as session:
+        match id:
+            case int():
+                return get_item_by_id(
+                    session=session
+                    , id=id
+                    , translate=translate
+                )
+            case str():
+                return get_user_by_id(
+                    session=session
+                    , id=id
+                    , translate=translate
+                )
