@@ -51,3 +51,4 @@ class Seeding(SQLModel, table=True):
     currid : int
     batch_size : int
     start_date : Timestamp
+    last_execution_ts : Timestamp | None = Field(default=None)

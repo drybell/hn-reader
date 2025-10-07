@@ -1,3 +1,5 @@
+from core.datatypes.timestamp import Timestamp
+
 from pydantic import (
     BaseModel
     , UUID4
@@ -5,6 +7,7 @@ from pydantic import (
     , PostgresDsn
     , computed_field
 )
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from ipaddress import IPv4Address as IPv4
 
@@ -30,6 +33,10 @@ class DBConfig(BaseModel):
             port=self.port,
             path=self.database,
         )
+
+class SeedingConfig(BaseModel):
+    batch_size : int
+    start_date : Timestamp
 
 class CeleryConfig(BaseModel):
     broker  : str
@@ -57,6 +64,7 @@ class Settings(BaseSettings):
         , env_prefix="BASE_"
     )
 
-    server : ServerConfig
-    db     : DBConfig
-    redis  : RedisConfig
+    server  : ServerConfig
+    db      : DBConfig
+    redis   : RedisConfig
+    seeding : SeedingConfig
