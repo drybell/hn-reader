@@ -43,3 +43,11 @@ class User(SQLModel, table=True):
         default=None
         , sa_column=Column(ARRAY(Integer))
     )
+
+class Seeding(SQLModel, table=True):
+    __tablename__ = 'seeding_queue'
+
+    id : int | None = Field(default=None, primary_key=True)
+    currid : int
+    batch_size : int
+    start_date : Timestamp
