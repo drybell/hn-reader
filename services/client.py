@@ -8,6 +8,7 @@ from models.base import (
     , StoryId
     , Updated
     , Comment
+    , Ids
 )
 
 from services.inspector import Inspector
@@ -21,9 +22,10 @@ class HNClient:
     # when attempting to run on 500 ids. need to identify a method
     # to guard against potential request failures or misconfigured
     # parameters (especially with parallel aggregation)
-    AggF      = Aggregator.pagg
-    max_procs = 24
-    batches   = 20
+    AggF       = Aggregator.pagg
+    max_procs  = 24
+    batches    = 20
+    expand_ids = False
 
     # TODO: probably a more elegant solution than doing this
     # manual delegation. for now it works, but in the future
@@ -67,11 +69,14 @@ class HNClient:
         InspectorF : Callable | None = None
         , data     : Sequence[StoryId] | None = None
         , **kw
-    ) -> Sequence[ItemT]:
+    ) -> Sequence[ItemT] | Sequence[Ids]:
         if InspectorF is not None:
-            return HNClient._call_inspector_then_process(
-                InspectorF, **kw
-            )
+            if HNClient.expand_ids:
+                return HNClient._call_inspector_then_process(
+                    InspectorF, **kw
+                )
+            else:
+                return InspectorF()
 
         if data is not None:
             return HNClient._process(data, **kw)

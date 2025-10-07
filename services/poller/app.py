@@ -30,4 +30,22 @@ def setup_periodic_tasks(sender: Celery, **kwargs):
         , name="refresh TopHN posts"
     )
 
+    sender.add_periodic_task(
+        125.0
+        , services.poller.tasks.refresh.s('jobs')
+        , name="refresh Job postings"
+    )
+
+    sender.add_periodic_task(
+        130.0
+        , services.poller.tasks.refresh.s('showhn')
+        , name="refresh ShowHN posts"
+    )
+
+    sender.add_periodic_task(
+        200.0
+        , services.poller.tasks.refresh.s('new')
+        , name="refresh new HN posts"
+    )
+
 #app.autodiscover_tasks()

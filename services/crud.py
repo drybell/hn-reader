@@ -47,10 +47,12 @@ def get_item_by_id(
         case int():
             item = session.exec(
                 select(ItemDB).where(ItemDB.id == id)
-            )
+            ).first()
 
             if translate:
                 return Translator.Generic.item(item)
+
+            return item
         case _:
             raise TypeError(f"id: {id} : {type(id)} is not a Sequence or int!")
 

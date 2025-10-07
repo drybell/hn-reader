@@ -1,5 +1,6 @@
 from celery import shared_task
 
+from services.inspector import Inspector
 from services.client import HNClient
 from services.translator import Translator
 
@@ -17,7 +18,7 @@ def serialize(Model):
     def decorator(fn):
         @wraps(fn)
         def wrapper(data: dict, *args, **kwargs):
-            if model == ItemWrapper:
+            if Model == ItemWrapper:
                 instance = Model(item=data).item
             else:
                 instance = Model(**data)
@@ -25,6 +26,8 @@ def serialize(Model):
         return wrapper
     return decorator
 
+# TODO: HNClient can't spawn new processes, need to
+# move the parallelization into celery tasks
 @shared_task(name="services.poller.tasks.refresh")
 def refresh(rtype : str):
     match rtype:
@@ -39,7 +42,7 @@ def refresh(rtype : str):
         case 'jobs':
             items = HNClient.jobs()
 
-    items.apply(persist.delay)
+    items.stories.apply(fetch.delay)
 
 @shared_task(name="services.poller.tasks.fetch")
 def fetch(id : int):
