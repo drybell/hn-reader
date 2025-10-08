@@ -2,6 +2,7 @@ from core.datatypes.timestamp import Timestamp
 
 from pydantic import (
     BaseModel
+    , Field
     , UUID4
     , AnyUrl
     , PostgresDsn
@@ -35,8 +36,8 @@ class DBConfig(BaseModel):
         )
 
 class SeedingConfig(BaseModel):
-    batch_size : int
-    start_date : Timestamp
+    batch_size : int = Field(..., alias="batchsize")
+    start_date : Timestamp = Field(..., alias='startdate')
 
 class CeleryConfig(BaseModel):
     broker  : str
