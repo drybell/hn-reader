@@ -1,0 +1,9 @@
+#!/bin/bash
+
+source .starter-env
+
+cd $PROJECT_ROOT
+
+celery -A services.poller.app worker -E -B \
+    --loglevel=warning \
+    -Q ids_to_fetch,fetched_items,refreshes,seeding,celery
