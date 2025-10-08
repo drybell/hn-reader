@@ -59,24 +59,35 @@ class Aggregator:
     def sagg(
         InspectorF : Callable
         , attr : str = 'stories'
-    ) -> Sequence[ItemT]:
+    ) -> Sequence[ItemT] | ResponseError:
         # TODO: Inspector.get_updates will require some
         # attr shimming since its not just stories that we need to
         # pull from, also applies to pagg below
-        return getattr(InspectorF(), attr).apply(
-            Inspector.get_item
-        )
+        result = InspectorF()
+
+        match result:
+            case ResponseError():
+                return result
+            case _:
+                return getattr(result, attr).apply(
+                    Inspector.get_item
+                )
 
     @staticmethod
     def pagg(
         InspectorF : Callable
         , attr : str = 'stories'
         , **kw
-    ) -> Sequence[ItemT]:
-        return Tasks.parallel(
-            getattr(InspectorF(), attr)
-            , **kw
-        )
+    ) -> Sequence[ItemT] | ResponseError:
+        result = InspectorF()
+        match result:
+            case ResponseError():
+                return result
+            case _:
+                return Tasks.parallel(
+                    getattr(result, attr)
+                    , **kw
+                )
 
     @staticmethod
     def pagg_only_data(

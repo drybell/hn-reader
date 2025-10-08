@@ -69,7 +69,7 @@ class HNClient:
         InspectorF : Callable | None = None
         , data     : Sequence[StoryId] | None = None
         , **kw
-    ) -> Sequence[ItemT] | Sequence[Ids]:
+    ) -> Sequence[ItemT]| Ids | ResponseError:
         if InspectorF is not None:
             if HNClient.expand_ids:
                 return HNClient._call_inspector_then_process(
@@ -84,25 +84,25 @@ class HNClient:
         raise Exception(f"Inspector function or `data` Sequence required")
 
     @staticmethod
-    def new() -> Sequence[ItemT]:
+    def new() -> Sequence[ItemT] | ResponseError:
         return HNClient._do_work(
             Inspector.new_stories
         )
 
     @staticmethod
-    def best() -> Sequence[ItemT]:
+    def best() -> Sequence[ItemT] | ResponseError:
         return HNClient._do_work(
             Inspector.best_stories
         )
 
     @staticmethod
-    def askhn() -> Sequence[ItemT]:
+    def askhn() -> Sequence[ItemT] | ResponseError:
         return HNClient._do_work(
             Inspector.ask_stories
         )
 
     @staticmethod
-    def showhn() -> Sequence[ItemT]:
+    def showhn() -> Sequence[ItemT] | ResponseError:
         return HNClient._do_work(
             Inspector.show_stories
         )

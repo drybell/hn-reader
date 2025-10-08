@@ -39,25 +39,37 @@ def parse_model(
             try:
                 response = func(*args, **kwargs)
             except Exception as e:
-                return ResponseError(
-                    message="Request Error"
-                    , error=e
-                    , status=response.status_code
-                )
+                match e:
+                    case requests.exceptions.SSLError():
+                        return ResponseError(
+                            args=args
+                            , message="SSL Error, most likely due to too many open active requests..."
+                            , error=e
+                            , status=999
+                        )
+                    case _:
+                        return ResponseError(
+                            args=args
+                            , message="Request Error"
+                            , error=e
+                            , status=response.status_code
+                        )
 
             # Ensure it's a requests.Response
             if not response or not isinstance(response, requests.Response):
                 return ResponseError(
-                    status=999
+                    args=args
+                    , status=999
                     , message="Expected a Response object"
-                    , raw=response
+                    , raw=str(response)
                 )
 
             if response.status_code > 201:
                 return ResponseError(
-                    status=response.status_code
+                    args=args
+                    , status=response.status_code
                     , message="Request failed"
-                    , raw=response
+                    , raw=str(response.content)
                 )
 
             # Get model from decorator arg, or infer from return annotation
@@ -76,7 +88,8 @@ def parse_model(
                             Model = StoryId
                 except Exception as e:
                     return ResponseError(
-                        error=e
+                        args=args
+                        , error=e
                         , message=f"Failed to determine Model: {e}"
                     )
 
@@ -91,7 +104,8 @@ def parse_model(
                 return response.json()
             except (ValueError, ValidationError) as e:
                 return ResponseError(
-                    error=e
+                    args=args
+                    , error=e
                     , status=response.status_code
                     , raw=response
                     , message="Failed to load model"

@@ -10,7 +10,13 @@ from models.db.base import (
 )
 
 from models.base import (
-    Item, ItemT, Story, Comment, Job, User
+    Item
+    , ItemT
+    , Story
+    , Comment
+    , Job
+    , User
+    , ResponseError
 )
 
 from services.translator import Translator
@@ -144,14 +150,19 @@ def update_user(
     return session_lifecycle(session, userdb)
 
 def post(
-    data : ItemT | User
-) -> ItemDB | UserDB:
+    data : ItemT | User | ResponseError
+) -> ItemDB | UserDB | ResponseError:
+    if isinstance(data, ResponseError):
+        return data
+
     with Session(DB.ENGINE) as session:
         match data:
             case User():
                 return create_user(session=session, user=data)
             case _:
-                return create_item(session=session, item=data)
+                return create_item(
+                    session=session, item=data
+                )
 
 def get(
     id : int | str
