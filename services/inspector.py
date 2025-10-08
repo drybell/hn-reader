@@ -40,10 +40,13 @@ def parse_model(
                 response = func(*args, **kwargs)
             except Exception as e:
                 match e:
-                    case requests.exceptions.SSLError():
+                    case (
+                        requests.exceptions.SSLError()
+                        | requests.exceptions.ConnectionError()
+                    ):
                         return ResponseError(
                             args=args
-                            , message="SSL Error, most likely due to too many open active requests..."
+                            , message=f"{e.__class__.__name__}, most likely due to too many open active requests..."
                             , error=e
                             , status=999
                         )
@@ -52,7 +55,7 @@ def parse_model(
                             args=args
                             , message="Request Error"
                             , error=e
-                            , status=response.status_code
+                            , status=999
                         )
 
             # Ensure it's a requests.Response
