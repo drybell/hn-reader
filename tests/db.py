@@ -44,3 +44,6 @@ def update_item(session, item):
         , itemdb=get_item(session, item.id)
         , update_item=item
     )
+
+def init_seeding():
+    return crud.init_seeding()
