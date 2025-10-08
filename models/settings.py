@@ -36,12 +36,15 @@ class DBConfig(BaseModel):
         )
 
 class SeedingConfig(BaseModel):
-    batch_size : int = Field(..., alias="batchsize")
-    start_date : Timestamp = Field(..., alias='startdate')
+    batch_size : int
+    start_date : Timestamp
 
 class CeleryConfig(BaseModel):
     broker  : str
     backend : str
+
+class ClientConfig(BaseModel):
+    item_fetch_cooldown : int # seconds
 
 class RedisConfig(BaseModel):
     host    : IPv4
@@ -63,9 +66,11 @@ class Settings(BaseSettings):
         env_file='.env'
         , env_nested_delimiter="_"
         , env_prefix="BASE_"
+        , env_nested_max_split=1
     )
 
     server  : ServerConfig
     db      : DBConfig
     redis   : RedisConfig
     seeding : SeedingConfig
+    client  : ClientConfig

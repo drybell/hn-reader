@@ -1,5 +1,6 @@
 from core.datatypes.sequence import Sequence
 from core.datatypes.timestamp import Timestamp
+from core.utils.dt import DT
 
 from pydantic import BaseModel, Field, computed_field
 from enum import StrEnum
@@ -29,6 +30,7 @@ class ItemPath(StrEnum):
     UPDATES     = "updates.json"
 
 class ResponseError(BaseModel):
+    args      : Any
     status    : int
     message   : str
     content   : Any | None = None
@@ -47,6 +49,11 @@ class ResponseError(BaseModel):
         if self.error is not None:
             return self.error.__class__.__name__
 
+    def model_dump(self, *args, **kw):
+        base = super().model_dump(*args, **kw)
+        base.pop('error')
+        return base
+
 class Item(BaseModel):
     id: StoryId
     type: ItemType | None = None
@@ -63,6 +70,7 @@ class Item(BaseModel):
     title: str | None = None
     parts: Sequence[int] | None = None
     descendants: int | None = None
+    last_fetch_ts : Timestamp = Field(default_factory=DT.now)
 
 class Story(Item):
     by : str
