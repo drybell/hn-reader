@@ -32,7 +32,9 @@ class Item(SQLModel, table=True):
     )
     descendants : int | None = Field(default=None)
 
-    created_ts: Timestamp = Field(default_factory=DT.now)
+    created_ts : Timestamp = Field(default_factory=DT.now)
+    last_fetch_ts : Timestamp = Field(default_factory=DT.now)
+    edited_ts : Timestamp = Field(default_factory=DT.now)
 
 class User(SQLModel, table=True):
     id: str = Field(primary_key=True)
