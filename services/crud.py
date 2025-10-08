@@ -1,8 +1,12 @@
 from core.datatypes.sequence import Sequence
+from core.datatypes.timestamp import Timestamp
+
+from config import settings
 
 from models.db.base import (
     Item as ItemDB
     , User as UserDB
+    , Seeding
 )
 
 from models.base import (
@@ -13,6 +17,8 @@ from services.translator import Translator
 from services.db import DB
 
 from sqlmodel import Session, select
+
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 def session_lifecycle(
@@ -165,3 +171,53 @@ def get(
                     , id=id
                     , translate=translate
                 )
+
+def get_seeding_config(
+    *
+    , session : Session
+) -> Seeding | None:
+    return session.exec(
+        select(Seeding).where(Seeding.id == 1)
+    ).first()
+
+def post_seeding_config_from_settings(
+    *
+    , session : Session
+) -> Seeding:
+    base = settings.seeding.model_dump()
+
+    base['currid'] = session.exec(
+        select(func.min(ItemDB.id))
+    ).one() - 1 # we don't want to re-fetch an existing item
+
+    seeding = Seeding(**base)
+
+    return session_lifecycle(session, seeding)
+
+def update_seeding(
+    *
+    , currid : int
+    , last_execution_ts : Timestamp
+) -> Seeding:
+    with Session(DB.ENGINE) as session:
+        original = get_seeding_config(session=session)
+
+        original.sqlmodel_update({
+            'currid': currid - 1
+            , 'last_execution_ts': last_execution_ts
+        })
+
+        return session_lifecycle(session, original)
+
+def init_seeding() -> Seeding:
+    with Session(DB.ENGINE) as session:
+        conf = get_seeding_config(session=session)
+
+        if conf is None:
+            return post_seeding_config_from_settings(
+                session=session
+            )
+
+        # TODO: update seeding config from settings?
+
+        return conf
