@@ -20,6 +20,9 @@ app.conf.task_routes = {
     , "services.poller.tasks.refresh": {
         'queue': 'refreshes'
     }
+    , "services.poller.tasks.seeding": {
+        'queue': 'seeding'
+    }
 }
 
 @app.on_after_configure.connect
@@ -46,6 +49,12 @@ def setup_periodic_tasks(sender: Celery, **kwargs):
         200.0
         , services.poller.tasks.refresh.s('new')
         , name="refresh new HN posts"
+    )
+
+    sender.add_periodic_task(
+        150.0
+        , services.poller.tasks.seeding.s()
+        , name="seed all ids backwards"
     )
 
 #app.autodiscover_tasks()
