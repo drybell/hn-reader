@@ -51,7 +51,7 @@ class ResponseError(BaseModel):
 
     def model_dump(self, *args, **kw):
         base = super().model_dump(*args, **kw)
-        base.pop('error')
+        base.pop('error', None)
         return base
 
 class Item(BaseModel):
