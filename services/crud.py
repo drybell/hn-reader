@@ -157,11 +157,10 @@ def update_user(
 def post(
     data : ItemT | User | ResponseError
 ) -> ItemDB | UserDB | ResponseError:
-    if isinstance(data, ResponseError):
-        return data
-
     with Session(DB.ENGINE) as session:
         match data:
+            case ResponseError():
+                return data
             case User():
                 return create_user(session=session, user=data)
             case _:

@@ -5,10 +5,17 @@ from config import settings
 
 from services.client import HNClient
 
-from models.db.base import Seeding
+from models.db.base import Seeding, User as UserDB
 
 from models.base import (
-    ItemT, Item, User, ItemWrapper, ResponseError
+    ItemT
+    , Item
+    , User
+    , ItemWrapper
+    , ResponseError
+    , HNConsumer
+    , Poll
+    , HackerItemT
 )
 
 from services.crud import (
@@ -34,7 +41,9 @@ def serialize(Model):
     def decorator(fn):
         @wraps(fn)
         def wrapper(data: dict, *args, **kwargs):
-            if Model == ItemWrapper:
+            if Model == HNConsumer:
+                instance = HNConsumer.consume(data)
+            elif Model == ItemWrapper:
                 try:
                     instance = Model(item=data).item
                 except Exception as e:
@@ -64,7 +73,7 @@ def refresh(rtype : str):
     items.stories.apply(fetch.delay)
 
 @shared_task(name="services.poller.tasks.fetch")
-def fetch(id : int, retry_count : int = 0):
+def fetch(id : int | str, retry_count : int = 0):
     def persist_item():
         persist.delay(
             HNClient.get(
@@ -86,7 +95,7 @@ def fetch(id : int, retry_count : int = 0):
     now = DT.now(tz=None)
 
     if cd_expiration >= now:
-        logger.warning(f"items.{item.id} fetch cooldown in effect for {(cd_expiration - now).total_seconds():.2f} more seconds...")
+        logger.warning(f"{item.__class__.__name__}.{item.id} fetch cooldown in effect for {(cd_expiration - now).total_seconds():.2f} more seconds...")
         return
 
     persist_item()
@@ -103,7 +112,7 @@ def retry(id : int, retry_count : int = 0):
         return
 
     fetch.apply_async(
-        args=[id,]
+        args=[id]
         , kwargs={
             'retry_count': retry_count + 1
         }
@@ -114,22 +123,41 @@ def retry(id : int, retry_count : int = 0):
     )
 
 @shared_task(name="services.poller.tasks.persist")
-@serialize(ItemWrapper)
-def persist(item : ItemT | ResponseError):
-    result = post(item)
-
-    if isinstance(result, ResponseError):
-        logger.warning(f"[ATTEMPT {result.retries or 0}]: Failed to post item: ResponseError returned -> {result.condensed()}")
-        recovered_id = result.args[0]
-        retry.delay(recovered_id, retry_count=result.retries)
-        return
-
-    if item.kids:
-        logger.info(
-            f"adding {item.kids.length()} ids, min={min(item.kids)}, max={max(item.kids)} to fetch"
+@serialize(HNConsumer)
+def persist(item : HackerItemT):
+    def do_fetch(id):
+        fetch.apply_async(
+            args=[id]
+            , queue='ids_to_fetch'
         )
 
-        item.kids.apply(fetch.delay)
+    def fetch_wrapper(obj):
+        match obj:
+            case Sequence():
+                obj.apply(do_fetch)
+            case _:
+                do_fetch(obj)
+
+    match item:
+        case ResponseError():
+            logger.warning(f"[ATTEMPT {item.retries or 0}]: Failed to post item: ResponseError returned -> {item.condensed()}")
+            recovered_id = item.args[0]
+            retry.delay(recovered_id, retry_count=item.retries)
+        case User():
+            post(item)
+
+            if item.submitted:
+                fetch_wrapper(item.submitted)
+        case _:
+            post(item)
+
+            fetch_wrapper(item.by)
+
+            if item.kids:
+                fetch_wrapper(item.kids)
+
+            if item.parts:
+                fetch_wrapper(item.parts)
 
 @shared_task(name="services.poller.tasks.seeding")
 def seeding():

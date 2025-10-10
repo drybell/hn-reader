@@ -14,6 +14,8 @@ class ItemType(StrEnum):
     STORY = 'story'
     COMMENT = 'comment'
     JOB = 'job'
+    POLL = 'poll'
+    POLL_OPTION = 'pollopt'
 
 class ItemPath(StrEnum):
     ITEM = "item/"
@@ -121,12 +123,27 @@ class DeadComment(Comment):
 
 class Job(Item):
     by : str
-    kids : Sequence[int] | None = None
     score : int
     time : int
     title : str
     url : str | None = None
     type : Literal[ItemType.JOB] = ItemType.JOB
+
+class Poll(Item):
+    by : str
+    parts : Sequence[int]
+    score : int
+    time : int
+    title : str
+    type : Literal[ItemType.POLL] = ItemType.POLL
+
+class PollOption(Item):
+    by : str
+    poll : int
+    score : int
+    time : int
+    text : str
+    type : Literal[ItemType.POLL_OPTION] = ItemType.POLL_OPTION
 
 class Ids(BaseModel):
     stories : Sequence[StoryId]
@@ -151,6 +168,8 @@ ItemT = (
     | DeletedComment
     | Comment
     | Job
+    | Poll
+    | PollOption
     | Item
 )
 
@@ -161,8 +180,25 @@ CommentT = (
     | Comment
 )
 
+HackerItemT = (
+    ItemT
+    | User
+    | ResponseError
+)
+
 class ItemWrapper(BaseModel):
     item : ItemT = Field(union_mode='left_to_right')
+
+class HNConsumer(BaseModel):
+    item : HackerItemT = Field(union_mode='left_to_right')
+
+    @classmethod
+    def consume(cls, item : dict | HackerItemT):
+        match item:
+            case dict():
+                return cls(item=item).item
+            case _:
+                return cls(item=item.model_dump()).item
 
 class Updates(BaseModel):
     items    : Sequence[StoryId]

@@ -55,7 +55,7 @@ def setup_periodic_tasks(sender: Celery, **kwargs):
     )
 
     sender.add_periodic_task(
-        150.0
+        300.0
         , services.poller.tasks.seeding.s()
         , name="seed all ids backwards"
     )

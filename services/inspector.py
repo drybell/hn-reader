@@ -100,6 +100,7 @@ def parse_model(
                         args=args
                         , error=e
                         , message=f"Failed to determine Model: {e}"
+                        , retries=retries
                     )
 
             try:
@@ -121,7 +122,7 @@ def parse_model(
                     args=args
                     , error=e
                     , status=response.status_code
-                    , raw=response
+                    , raw=str(response.content)
                     , message="Failed to load model"
                     , retries=retries
                 )
