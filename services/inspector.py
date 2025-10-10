@@ -36,6 +36,8 @@ def parse_model(
             # Call the original function (e.g., Inspector.get(...))
             response = None
 
+            retries = kwargs.get('retries')
+
             try:
                 response = func(*args, **kwargs)
             except Exception as e:
@@ -49,6 +51,7 @@ def parse_model(
                             , message=f"{e.__class__.__name__}, most likely due to too many open active requests..."
                             , error=e
                             , status=999
+                            , retries=retries
                         )
                     case _:
                         return ResponseError(
@@ -56,6 +59,7 @@ def parse_model(
                             , message="Request Error"
                             , error=e
                             , status=999
+                            , retries=retries
                         )
 
             # Ensure it's a requests.Response
@@ -65,6 +69,7 @@ def parse_model(
                     , status=999
                     , message="Expected a Response object"
                     , raw=str(response)
+                    , retries=retries
                 )
 
             if response.status_code > 201:
@@ -73,6 +78,7 @@ def parse_model(
                     , status=response.status_code
                     , message="Request failed"
                     , raw=str(response.content)
+                    , retries=retries
                 )
 
             # Get model from decorator arg, or infer from return annotation
@@ -100,7 +106,12 @@ def parse_model(
                 if Model == Ids:
                     return Model(stories=response.json())
                 elif Model == ItemWrapper:
-                    return Model(item=response.json()).item
+                    return Model(
+                        item={
+                            **response.json()
+                            , 'retry_count': retries
+                        }
+                    ).item
                 elif Model != StoryId:
                     return Model(**response.json())
 
@@ -112,6 +123,7 @@ def parse_model(
                     , status=response.status_code
                     , raw=response
                     , message="Failed to load model"
+                    , retries=retries
                 )
 
         return wrapper
@@ -152,7 +164,10 @@ class Inspector:
 
     @staticmethod
     @parse_model
-    def get_item(id : int | str) -> ItemT:
+    def get_item(
+        id : int | str
+        , retries : int | None = None
+    ) -> ItemT:
         return Inspector.get(ItemPath.ITEM, id)
 
     @staticmethod

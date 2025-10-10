@@ -22,6 +22,14 @@ from functools import wraps
 
 logger = get_task_logger(__name__)
 
+class DelayConfig:
+    base_delay  = 60
+    max_retries = 5
+
+    @classmethod
+    def exponential_backoff(cls, retry_count : int) -> int:
+        return cls.base_delay * (2 ** retry_count)
+
 def serialize(Model):
     def decorator(fn):
         @wraps(fn)
@@ -56,10 +64,12 @@ def refresh(rtype : str):
     items.stories.apply(fetch.delay)
 
 @shared_task(name="services.poller.tasks.fetch")
-def fetch(id : int):
+def fetch(id : int, retry_count : int = 0):
     def persist_item():
         persist.delay(
-            HNClient.get(id).model_dump(exclude_none=True)
+            HNClient.get(
+                id, retry_count=retry_count
+            ).model_dump(exclude_none=True)
         )
 
     item = get(id)
@@ -81,13 +91,37 @@ def fetch(id : int):
 
     persist_item()
 
+@shared_task(name="services.poller.tasks.retry")
+def retry(id : int, retry_count : int = 0):
+    if retry_count is None:
+        retry_count = 0
+
+    if retry_count >= DelayConfig.max_retries:
+        logger.error(
+            f"items.{id} failed after {DelayConfig.max_retries}... Giving up."
+        )
+        return
+
+    fetch.apply_async(
+        args=[id,]
+        , kwargs={
+            'retry_count': retry_count + 1
+        }
+        , queue='ids_to_fetch'
+        , countdown=DelayConfig.exponential_backoff(
+            retry_count
+        )
+    )
+
 @shared_task(name="services.poller.tasks.persist")
 @serialize(ItemWrapper)
 def persist(item : ItemT | ResponseError):
     result = post(item)
 
     if isinstance(result, ResponseError):
-        logger.warning(f"Failed to post item: ResponseError returned -> {result.model_dump(exclude_none=True)}")
+        logger.warning(f"[ATTEMPT {result.retries or 0}]: Failed to post item: ResponseError returned -> {result.condensed()}")
+        recovered_id = result.args[0]
+        retry.delay(recovered_id, retry_count=result.retries)
         return
 
     if item.kids:

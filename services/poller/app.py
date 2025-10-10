@@ -23,6 +23,9 @@ app.conf.task_routes = {
     , "services.poller.tasks.seeding": {
         'queue': 'seeding'
     }
+    , "services.poller.tasks.retry": {
+        'queue': 'retries'
+    }
 }
 
 @app.on_after_configure.connect

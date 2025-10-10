@@ -108,14 +108,19 @@ class HNClient:
         )
 
     @staticmethod
-    def jobs() -> Sequence[Job]:
+    def jobs() -> Sequence[Job] | ResponseError:
         return HNClient._do_work(
             Inspector.job_stories
         )
 
     @staticmethod
-    def get(id : int | str) -> ItemT:
-        return Inspector.get_item(id)
+    def get(
+        id : int | str
+        , retry_count : int | None = None
+    ) -> ItemT | ResponseError:
+        return Inspector.get_item(
+            id, retries=retry_count
+        )
 
     @staticmethod
     def expand(
@@ -140,7 +145,7 @@ class HNClient:
     @staticmethod
     def updates() -> Updated:
         raise NotImplementedError(
-            "Need to modify Aggregator.*agg attr handling before" \
+            "Need to modify Aggregator.*agg attr handling before "
             "calling this function or things will explode!"
         )
         return HNClient._do_work(

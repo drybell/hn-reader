@@ -6,4 +6,4 @@ cd $PROJECT_ROOT
 
 celery -A services.poller.app worker -E -B \
     --loglevel=warning \
-    -Q ids_to_fetch,fetched_items,refreshes,seeding,celery
+    -Q ids_to_fetch,fetched_items,refreshes,seeding,retries,celery
