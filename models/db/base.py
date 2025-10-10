@@ -35,6 +35,7 @@ class Item(SQLModel, table=True):
     created_ts : Timestamp = Field(default_factory=DT.now)
     last_fetch_ts : Timestamp = Field(default_factory=DT.now)
     edited_ts : Timestamp = Field(default_factory=DT.now)
+    retry_count : int | None = Field(default=None)
 
 class User(SQLModel, table=True):
     id: str = Field(primary_key=True)

@@ -36,6 +36,7 @@ class ResponseError(BaseModel):
     content   : Any | None = None
     error     : Any | None = None
     raw       : Any | None = None
+    retries   : int | None = None
 
     @computed_field
     @property
@@ -49,10 +50,22 @@ class ResponseError(BaseModel):
         if self.error is not None:
             return self.error.__class__.__name__
 
-    def model_dump(self, *args, **kw):
+    def condensed(self) -> dict:
+        return {
+            'args': self.args
+            , 'status': self.status
+            , 'message': self.message
+            , 'error': str(self.error)
+        }
+
+    def model_dump(self, *args, **kw) -> dict:
         base = super().model_dump(*args, **kw)
         base.pop('error', None)
-        return base
+        return {
+            **base
+            , 'error_str': self.error_str
+            , 'error_cls': self.error_cls
+        }
 
 class Item(BaseModel):
     id: StoryId
@@ -71,6 +84,7 @@ class Item(BaseModel):
     parts: Sequence[int] | None = None
     descendants: int | None = None
     last_fetch_ts : Timestamp = Field(default_factory=DT.now)
+    retry_count : int | None = None
 
 class Story(Item):
     by : str
