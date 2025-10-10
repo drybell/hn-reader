@@ -1,10 +1,12 @@
 """
 HackerNews post categorization using zero-shot and sentence transformers.
 """
-import loader
-
 from core.datatypes.sequence import Sequence
 from core.utils.timer import Timer, ExecutionTimestamp
+
+from analysis.models.base import (
+    PostCollection, Post
+)
 
 from analysis.db import (
     query
@@ -365,16 +367,24 @@ class PostTitleCategorizer:
         )
 
     @Timer.timed
-    def run(self, ret_type='df') -> tuple[
+    def run(
+        self
+        , posts : PostCollection = None
+        , ret_type : str = 'df'
+    ) -> tuple[
         Sequence[TaggedPost] | pd.DataFrame
         , ExecutionTimestamp
     ]:
-        df = Queries.Sentiment.Categories.get_posts(
-            self.filters, self.limit
-        )
+        if posts is None:
+            df = Queries.Sentiment.Categories.get_posts(
+                self.filters, self.limit
+            )
+        else:
+            df = posts.to_title_df()
 
         results = self.model.categorize_batch(
-            df.title.to_list(), df.id.to_list(), threshold=self.threshold
+            df.title.to_list(), df.id.to_list()
+            , threshold=self.threshold
         )
 
         if ret_type == 'df':

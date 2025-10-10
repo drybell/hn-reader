@@ -90,12 +90,19 @@ class Comment(Item):
     type : Literal[ItemType.COMMENT] = ItemType.COMMENT
 
 class DeletedComment(Comment):
-    by : str
-    kids : Sequence[int] | None = None
-    parent : int
+    by : str | None = None
     text : None = None
     deleted : bool = True
-    time : int
+    type : Literal[ItemType.COMMENT] = ItemType.COMMENT
+
+class FlaggedComment(Comment):
+    by : str | None = None
+    text : Literal['[flagged]'] = '[flagged]'
+    type : Literal[ItemType.COMMENT] = ItemType.COMMENT
+
+class DeadComment(Comment):
+    by : str | None = None
+    text : Literal['[dead]'] = '[dead]'
     type : Literal[ItemType.COMMENT] = ItemType.COMMENT
 
 class Job(Item):
@@ -125,10 +132,19 @@ class User(BaseModel):
 
 ItemT = (
     Story
+    | FlaggedComment
+    | DeadComment
     | DeletedComment
     | Comment
     | Job
     | Item
+)
+
+CommentT = (
+    FlaggedComment
+    | DeadComment
+    | DeletedComment
+    | Comment
 )
 
 class ItemWrapper(BaseModel):
@@ -142,3 +158,76 @@ class Updated(BaseModel):
     items    : Sequence[ItemT]
     profiles : Sequence[User]
 
+class CommentThread(Comment):
+    """Single comment in the thread tree."""
+    depth: int
+    path: Sequence[int]
+
+class DeletedCommentThread(DeletedComment):
+    """Single deleted comment in the thread tree."""
+    depth: int
+    path: Sequence[int]
+
+class FlaggedCommentThread(FlaggedComment):
+    """Single deleted comment in the thread tree."""
+    depth: int
+    path: Sequence[int]
+
+class DeadCommentThread(DeadComment):
+    """Single deleted comment in the thread tree."""
+    depth: int
+    path: Sequence[int]
+
+class StoryRoot(Story):
+    """Top-level story in the thread tree."""
+    depth: int
+    path: Sequence[int]
+
+class JobRoot(Job):
+    """Top-level job in the thread tree."""
+    depth: int
+    path: Sequence[int]
+
+ThreadT = (
+    StoryRoot
+    | JobRoot
+    | DeletedCommentThread
+    | DeadCommentThread
+    | FlaggedCommentThread
+    | CommentThread
+)
+
+CommentThreadT = (
+    DeletedCommentThread
+    | DeadCommentThread
+    | FlaggedCommentThread
+    | CommentThread
+)
+
+class ThreadPage(BaseModel):
+    """Paginated thread response."""
+    id: str = Field(
+        description="Unique hash of story_id, page, and page_size"
+    )
+    items: Sequence[ThreadT]
+    total: int
+    page: int
+    page_size: int
+    has_next: bool
+
+class CommentThreadExpanded(BaseModel):
+    """Response for expanding a specific comment's children."""
+    id: str = Field(
+        description="Unique hash of parent_id, page, and page_size"
+    )
+    parent: CommentT = Field(union_mode='left_to_right')
+    children: Sequence[CommentThreadT] = Field(union_mode='left_to_right')
+    total_children: int
+    page: int
+    page_size: int
+    has_next: bool
+
+    def comments(self) -> Sequence[CommentThreadT | CommentT]:
+        return Sequence([
+            self.parent, *self.children
+        ])

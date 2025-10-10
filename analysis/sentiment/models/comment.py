@@ -91,22 +91,6 @@ class CommentSentiment(BaseModel):
     word_count: int
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-class ThreadSentiment(BaseModel):
-    """Aggregate sentiment analysis for a comment thread."""
-    thread_id: int
-    comment_count: int
-    avg_polarity: float
-    consensus_level: float = Field(
-        ge=0.0, le=1.0
-        , description="Agreement level in thread"
-    )
-    debate_quality: float = Field(
-        ge=0.0, le=1.0
-    )
-    dominant_tones: list[ToneType]
-    debate_detected: bool
-    sentiment_variance: float
-
 class TaggedComment(BaseModel):
     id        : int
     author    : str | None = None
@@ -131,4 +115,106 @@ class TaggedComment(BaseModel):
             , 'word_count': self.sentiment.word_count
             , **self.sentiment.argument_quality.model_dump()
         }
+
+class ThreadSentiment(BaseModel):
+    """Aggregate sentiment analysis for a comment thread."""
+    thread_id: str
+    comment_count: int
+    avg_polarity: float
+    consensus_level: float = Field(
+        ge=0.0, le=1.0
+        , description="Agreement level in thread"
+    )
+    debate_quality: float = Field(
+        ge=0.0, le=1.0
+    )
+    dominant_tones: Sequence[ToneType]
+    dominant_emotions: Sequence[EmotionType]
+    dominant_labels: Sequence[SentimentLabel]
+    avg_controversy: float
+    avg_emotional_intensity: float
+    debate_detected: bool
+    sentiment_variance: float
+    comments : Sequence[TaggedComment]
+
+    def to_condensed_fmt(self) -> dict:
+        base = self.model_dump(exclude_none=True)
+        base.pop('comments', None)
+        return base
+
+    def comment_df(self):
+        return self.comments.apply(
+            lambda x: x.to_condensed_fmt()
+        ).to_frame()
+
+
+class DebateIntensity(StrEnum):
+    """Level of debate intensity in a thread."""
+
+    NONE = "none"
+    MILD = "mild"
+    MODERATE = "moderate"
+    HEATED = "heated"
+    HOSTILE = "hostile"
+
+class ControversyType(StrEnum):
+    """Type of controversy detected."""
+
+    NONE = "none"
+    FACTUAL_DISAGREEMENT = "factual_disagreement"
+    OPINION_CLASH = "opinion_clash"
+    INTERPRETATION_CONFLICT = "interpretation_conflict"
+    VALUE_CLASH = "value_clash"
+    PERSONAL_ATTACK = "personal_attack"
+
+class ArgumentPattern(BaseModel):
+    """Detected argument patterns in comments."""
+
+    has_claim: bool = False
+    has_rebuttal: bool = False
+    has_evidence: bool = False
+    addresses_previous: bool = False
+    introduces_new_point: bool = False
+
+class OpposingViewpoints(BaseModel):
+    """Detected opposing viewpoints in thread."""
+
+    num_camps: int = Field(
+        ge=1, description="Number of distinct viewpoint camps"
+    )
+    camp_sizes: list[int] = Field(default_factory=list)
+    camp_representatives: list[int] = Field(
+        default_factory=list
+        , description="Comment IDs representing each camp"
+    )
+    polarization_score: float = Field(
+        ge=0.0, le=1.0
+        , description="How polarized the viewpoints are"
+    )
+
+class ThreadDebateAnalysis(BaseModel):
+    """Complete debate analysis for a comment thread."""
+    thread_id: str
+    comment_count: int
+    debate_intensity: DebateIntensity
+    controversy_type: ControversyType
+    controversy_score: float = Field(ge=0.0, le=1.0)
+    debate_quality: float = Field(
+        ge=0.0, le=1.0
+        , description="Quality of argumentation"
+    )
+    opposing_viewpoints: OpposingViewpoints
+    disagreement_ratio: float = Field(
+        ge=0.0, le=1.0
+        , description="Ratio of disagreeing comments"
+    )
+    escalation_detected: bool = False
+    back_and_forth_detected: bool = False
+    civility_score: float = Field(
+        ge=0.0, le=1.0
+        , description="How civil the discussion is"
+    )
+    key_contentions: Sequence[str]
+
+
 

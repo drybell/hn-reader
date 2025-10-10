@@ -4,6 +4,8 @@ Transformer-based sentiment and tone analysis for Hacker News comments.
 Uses pre-trained transformer models (BERT, RoBERTa, DistilBERT) for
 sentiment analysis without requiring API calls or LLM services.
 """
+from core.datatypes.sequence import Sequence
+
 from analysis.sentiment.models.comment import (
     ArgumentQuality
     , CommentSentiment
@@ -17,6 +19,12 @@ from analysis.sentiment.models.comment import (
     , ToneType
 )
 
+import analysis.utils as utils
+
+from models.base import (
+    CommentThreadExpanded
+)
+
 from collections import Counter
 from enum import StrEnum
 from typing import Any, Literal
@@ -26,7 +34,6 @@ from pydantic import BaseModel, Field
 from transformers import pipeline
 
 import numpy as np
-import html
 import re
 import warnings
 
@@ -38,7 +45,7 @@ class ModelConfig(BaseModel):
     nli_model: str = "roberta-large-mnli"# or "microsoft/deberta-v3-base"
     device: Literal["cpu", "cuda", "mps"] = "cpu"
     batch_size: int = 8
-    max_length: int = 512
+    max_length: int = 1024
 
 
 class HNSentimentTransformer:
@@ -161,42 +168,7 @@ class HNSentimentTransformer:
                 "but", "however", "actually", "wrong", "disagree"
                 , "incorrect", "misleading", "false", "fallacy"
                 , "biased", "unfair", "ridiculous", "nonsense"
-            }
-            , "skeptical": {
-                "doubt", "skeptical", "questionable", "dubious"
-                , "suspicious", "uncertain", "allegedly", "supposedly"
-                , "claim", "really", "sure"
-            }
-            , "constructive": {
-                "suggest", "recommend", "consider", "might", "could"
-                , "perhaps", "maybe", "alternative", "instead"
-                , "improvement", "better"
-            }
-        }
-
-    def _build_technical_lexicon(self) -> dict[str, set[str]]:
-        """Build lexicon for pattern-based features."""
-        return {
-            "technical": {
-                "algorithm", "api", "architecture", "backend", "database"
-                , "implementation", "framework", "performance", "optimization"
-                , "scalability", "memory", "cpu", "latency", "throughput"
-                , "function", "class", "method", "variable", "async"
-                , "thread", "process", "container", "distributed"
-            }
-            , "evidence": {
-                "because", "since", "therefore", "thus", "given"
-                , "based on", "according to", "shows", "demonstrates"
-                , "proves", "evidence", "data", "benchmark", "measured"
-            }
-            , "examples": {
-                "example", "for instance", "such as", "like", "e.g."
-                , "specifically", "consider", "suppose", "imagine"
-            }
-            , "controversy": {
-                "but", "however", "actually", "wrong", "disagree"
-                , "incorrect", "misleading", "false", "fallacy"
-                , "biased", "unfair", "ridiculous", "nonsense"
+                , "shit", "fuck", "ass", "bitch"
             }
             , "skeptical": {
                 "doubt", "skeptical", "questionable", "dubious"
@@ -211,29 +183,10 @@ class HNSentimentTransformer:
         }
 
     def _preprocess_text(self, text: str) -> tuple[str, list[str]]:
-        """
-        Strip HTML tags from text while preserving content.
-
-        Converts HTML entities to their corresponding characters
-        and removes all HTML tags, keeping the text content.
-
-        Args:
-            text: The HTML string to strip, or None
-
-        Returns:
-            Plain text with HTML removed and entities decoded
-        """
         if not text:
             return "", []
 
-        # First decode HTML entities (e.g., &quot; -> ", &#x27; -> ')
-        decoded = html.unescape(text)
-
-        # Remove HTML tags
-        clean = re.sub(r'<[^>]+>', '', decoded)
-
-        # Clean up any extra whitespace
-        clean = re.sub(r'\s+', ' ', clean).strip()
+        clean = utils.Cleaners.strip(text)
 
         return clean, re.findall(r'\b\w+\b', clean.lower())
 
@@ -629,7 +582,7 @@ class HNSentimentTransformer:
         return min(reasoning_score, 1.0)
 
     def _assess_argument_quality(
-        self, text: str, words: list[str]
+        self, text: str, words: list[str], skip: bool = False
     ) -> ArgumentQuality:
         """
         Assess the quality of arguments using advanced analysis.
@@ -638,6 +591,9 @@ class HNSentimentTransformer:
         and reasoning quality assessment.
         """
         # Extract claims and evidence
+        if skip:
+            return ArgumentQuality()
+
         claims, evidence_list = self._extract_claims_and_evidence(text)
 
         # Basic checks
@@ -794,6 +750,7 @@ class HNSentimentTransformer:
         , text: str
         , author: str
         , metadata: dict[str, Any] | None = None
+        , skip_argument: bool = False
     ) -> TaggedComment | None:
         """
         Analyze a single comment using transformer models.
@@ -836,7 +793,9 @@ class HNSentimentTransformer:
 
         # Pattern-based analysis
         tone = self._detect_tone(text, words)
-        argument_quality = self._assess_argument_quality(text, words)
+        argument_quality = self._assess_argument_quality(
+            text, words, skip=skip_argument
+        )
 
         return TaggedComment(
             id=comment_id
@@ -856,21 +815,22 @@ class HNSentimentTransformer:
         )
 
     def analyze_thread(
-        self, thread_id: int, comments: list[CommentSentiment]
+        self
+        , thread : CommentThreadExpanded | None = None
+        , skip_argument : bool = False
     ) -> ThreadSentiment:
         """
         Analyze sentiment patterns across a comment thread.
 
         Args:
-            thread_id: Thread identifier
-            comments: List of analyzed comments
+            thread : CommentThreadExpanded
 
         Returns:
             Aggregate thread sentiment analysis
         """
-        if not comments:
+        if not thread or thread.children.empty():
             return ThreadSentiment(
-                thread_id=thread_id
+                thread_id=thread.id
                 , comment_count=0
                 , avg_polarity=0.0
                 , consensus_level=0.0
@@ -880,7 +840,17 @@ class HNSentimentTransformer:
                 , sentiment_variance=0.0
             )
 
-        polarities = [c.sentiment.polarity for c in comments]
+        comments = Sequence([
+            thread.parent
+            , *thread.children
+        ]).apply(
+            lambda comment: self.analyze_comment(
+                comment.id, comment.text, comment.by
+                , skip_argument=skip_argument
+            )
+        )
+
+        polarities = comments.sentiment.sentiment.polarity.to_list()
         avg_polarity = float(np.mean(polarities))
         sentiment_variance = float(np.var(polarities))
 
@@ -888,43 +858,66 @@ class HNSentimentTransformer:
         consensus_level = max(1.0 - sentiment_variance * 2.0, 0.0)
 
         # Debate quality (based on argument quality metrics)
-        avg_logic = np.mean([
-            c.argument_quality.logical_structure for c in comments
-        ])
-        avg_constructiveness = np.mean([
-            c.argument_quality.constructiveness for c in comments
-        ])
+        avg_logic = np.mean(
+            comments.sentiment.argument_quality.logical_structure.to_list()
+        )
+        avg_constructiveness = np.mean(
+            comments.sentiment.argument_quality.constructiveness.to_list()
+        )
         debate_quality = float((avg_logic + avg_constructiveness) / 2.0)
 
         # Detect debates
-        controversy_scores = [
-            c.tone.controversy_score for c in comments
-        ]
+        controversy_scores = comments.sentiment.tone.controversy_score.to_list()
+
         avg_controversy = float(np.mean(controversy_scores))
         debate_detected = (
             sentiment_variance > 0.3 and avg_controversy > 0.3
         )
 
-        # Dominant tones
+        # Dominant tones & emotions
         tone_counter: Counter[ToneType] = Counter()
+        emotion_counter: Counter[EmotionType] = Counter(
+            comments.sentiment.emotions.dominant_emotion
+        )
+        label_counter: Counter[SentimentLabel] = Counter(
+            comments.sentiment.sentiment.label
+        )
+
         for comment in comments:
-            tone_counter[comment.tone.primary_tone] += 1
-            if comment.tone.secondary_tone:
-                tone_counter[comment.tone.secondary_tone] += 0.5
+            tone_counter[comment.sentiment.tone.primary_tone] += 1
+            if comment.sentiment.tone.secondary_tone:
+                tone_counter[comment.sentiment.tone.secondary_tone] += 0.5
 
         dominant_tones = [
             tone for tone, _ in tone_counter.most_common(3)
         ]
 
+        dominant_emotions = [
+            emotion for emotion, _ in emotion_counter.most_common(3)
+        ]
+
+        dominant_labels = [
+            label for label, _ in label_counter.most_common(3)
+        ]
+
+        avg_emotion_intensity = np.mean(
+            comments.sentiment.emotions.emotional_intensity.to_list()
+        )
+
         return ThreadSentiment(
-            thread_id=thread_id
+            thread_id=thread.id
             , comment_count=len(comments)
             , avg_polarity=avg_polarity
             , consensus_level=consensus_level
             , debate_quality=debate_quality
             , dominant_tones=dominant_tones
+            , dominant_emotions=dominant_emotions
+            , dominant_labels=dominant_labels
+            , avg_controversy=avg_controversy
+            , avg_emotional_intensity=avg_emotion_intensity
             , debate_detected=debate_detected
             , sentiment_variance=sentiment_variance
+            , comments=comments
         )
 
     def batch_analyze(
@@ -946,12 +939,18 @@ class HNSentimentTransformer:
 
         return results
 
-
 # Convenience function for quick analysis
 def analyze_hn_comment_transformer(
-    comment_id: int, text: str, author: str, device: str = "cpu"
+    comment_id: int
+    , text: str
+    , author: str
+    , device: str = "cpu"
+    , skip_argument: bool = False
 ) -> TaggedComment:
     """Quick transformer-based analysis of a single HN comment."""
     config = ModelConfig(device=device)
     analyzer = HNSentimentTransformer(config)
-    return analyzer.analyze_comment(comment_id, text, author)
+
+    return analyzer.analyze_comment(
+        comment_id, text, author, skip_argument=skip_argument
+    )
