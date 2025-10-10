@@ -46,6 +46,8 @@ class User(SQLModel, table=True):
         default=None
         , sa_column=Column(ARRAY(Integer))
     )
+    last_fetch_ts : Timestamp = Field(default_factory=DT.now)
+    created_ts : Timestamp = Field(default_factory=DT.now)
 
 class Seeding(SQLModel, table=True):
     __tablename__ = 'seeding_queue'

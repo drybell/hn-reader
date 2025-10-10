@@ -123,7 +123,7 @@ def create_user(*, session: Session, user : User) -> UserDB:
         return update_user(
             session=session
             , userdb=existing
-            , update_user=item
+            , update_user=user
         )
 
 def update_item(
