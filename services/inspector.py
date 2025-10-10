@@ -165,14 +165,17 @@ class Inspector:
     @staticmethod
     @parse_model
     def get_item(
-        id : int | str
+        id : int
         , retries : int | None = None
     ) -> ItemT:
         return Inspector.get(ItemPath.ITEM, id)
 
     @staticmethod
     @parse_model
-    def get_user(id : str) -> ItemT:
+    def get_user(
+        id : str
+        , retries : int | None = None
+    ) -> User:
         return Inspector.get(ItemPath.USER, id)
 
     @staticmethod

@@ -118,9 +118,17 @@ class HNClient:
         id : int | str
         , retry_count : int | None = None
     ) -> ItemT | ResponseError:
-        return Inspector.get_item(
-            id, retries=retry_count
-        )
+        match id:
+            case int():
+                return Inspector.get_item(
+                    id, retries=retry_count
+                )
+            case str():
+                return Inspector.get_user(
+                    id, retries=retry_count
+                )
+            case _:
+                raise ValueError(f"`{id}` : {type(id)} != (int | str)!")
 
     @staticmethod
     def expand(
