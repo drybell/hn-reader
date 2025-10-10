@@ -5,6 +5,6 @@ import services.client as client
 
 item = inspector.Inspector.get_item(45467717)
 
-jobs = agg.PAggregator.get_jobs()
+#jobs = agg.PAggregator.get_jobs()
 
 new = client.HNClient.new()
