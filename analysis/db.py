@@ -85,10 +85,11 @@ class TimedeltaComponent(BaseModel):
     ms  : int = Field(..., alias="milliseconds")
     mcs : int = Field(..., alias="microseconds")
     ns  : int = Field(..., alias="nanoseconds")
+    ts  : float
 
     @classmethod
     def from_td(cls, td: pd.Timedelta):
-        return cls(**td.components._asdict())
+        return cls(**td.components._asdict(), ts=td.total_seconds())
 
     def condensed(
         self, **kw
@@ -100,13 +101,23 @@ class TimedeltaComponent(BaseModel):
         }
 
 class WriteRateStats(BaseModel):
-    completion_duration : TimedeltaComponent
+    completion_duration : TimedeltaComponent | None
     elapsed_time        : TimedeltaComponent
     delta_results       : int
+    rate                : float
 
 class Queries:
     class Utils:
         class Timing:
+            @staticmethod
+            def rate_over_time(table : str, delay : int = 5, iters : int = 60) -> Sequence[WriteRateStats]:
+                res = Sequence([])
+
+                for i in range(iters):
+                    res.append(Queries.Utils.Timing.write_rate(table, delay))
+
+                return res
+
             @staticmethod
             def write_rate(table : str, delay : int = 60) -> WriteRateStats:
                 maxid = query(
@@ -128,14 +139,20 @@ class Queries:
                 diff = (t2.total.iloc[0] - t1.total.iloc[0])
                 dt = (et2.end - et.end)
 
-                return WriteRateStats(
-                    completion_duration=TimedeltaComponent.from_td(
+                cd = None
+
+                if diff > 0:
+                    cd = TimedeltaComponent.from_td(
                         pd.Timedelta(
                             seconds=maxid / (diff / dt.total_seconds())
                         )
                     )
+
+                return WriteRateStats(
+                    completion_duration=cd
                     , elapsed_time=TimedeltaComponent.from_td(dt)
                     , delta_results=diff
+                    , rate=(diff / dt.total_seconds())
                 )
 
         class IDs:

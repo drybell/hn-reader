@@ -30,33 +30,34 @@ class HNClient:
     # TODO: probably a more elegant solution than doing this
     # manual delegation. for now it works, but in the future
     # this should be abstracted or re-done
-    @staticmethod
+    @classmethod
     def _call_inspector_then_process(
-        InspectorF : Callable
+        cls
+        , InspectorF : Callable
         , **kw
     ):
         # TODO: more dynamic aggregator comparison
-        if HNClient.AggF == Aggregator.pagg:
-            return HNClient.AggF(
+        if cls.AggF == Aggregator.pagg:
+            return cls.AggF(
                 InspectorF
                 , **kw
-                , max_procs=HNClient.max_procs
-                , batches=HNClient.batches
+                , max_procs=cls.max_procs
+                , batches=cls.batches
             )
         else:
-            return HNClient.AggF(
+            return cls.AggF(
                 InspectorF
                 , **kw
             )
 
-    @staticmethod
-    def _process(data : Sequence[StoryId], **kw):
-        if HNClient.AggF == Aggregator.pagg:
+    @classmethod
+    def _process(cls, data : Sequence[StoryId], **kw):
+        if cls.AggF == Aggregator.pagg:
             return Aggregator.pagg_only_data(
                 data
                 , **kw
-                , max_procs=HNClient.max_procs
-                , batches=HNClient.batches
+                , max_procs=cls.max_procs
+                , batches=cls.batches
             )
         else:
             return Aggregator.sagg_only_data(
@@ -64,58 +65,60 @@ class HNClient:
                 , **kw
             )
 
-    @staticmethod
+    @classmethod
     def _do_work(
-        InspectorF : Callable | None = None
+        cls
+        , InspectorF : Callable | None = None
         , data     : Sequence[StoryId] | None = None
         , **kw
     ) -> Sequence[ItemT]| Ids | ResponseError:
         if InspectorF is not None:
-            if HNClient.expand_ids:
-                return HNClient._call_inspector_then_process(
+            if cls.expand_ids:
+                return cls._call_inspector_then_process(
                     InspectorF, **kw
                 )
             else:
                 return InspectorF()
 
         if data is not None:
-            return HNClient._process(data, **kw)
+            return cls._process(data, **kw)
 
         raise Exception(f"Inspector function or `data` Sequence required")
 
-    @staticmethod
-    def new() -> Sequence[ItemT] | ResponseError:
-        return HNClient._do_work(
+    @classmethod
+    def new(cls) -> Sequence[ItemT] | ResponseError:
+        return cls._do_work(
             Inspector.new_stories
         )
 
-    @staticmethod
-    def best() -> Sequence[ItemT] | ResponseError:
-        return HNClient._do_work(
+    @classmethod
+    def best(cls) -> Sequence[ItemT] | ResponseError:
+        return cls._do_work(
             Inspector.best_stories
         )
 
-    @staticmethod
-    def askhn() -> Sequence[ItemT] | ResponseError:
-        return HNClient._do_work(
+    @classmethod
+    def askhn(cls) -> Sequence[ItemT] | ResponseError:
+        return cls._do_work(
             Inspector.ask_stories
         )
 
-    @staticmethod
-    def showhn() -> Sequence[ItemT] | ResponseError:
-        return HNClient._do_work(
+    @classmethod
+    def showhn(cls) -> Sequence[ItemT] | ResponseError:
+        return cls._do_work(
             Inspector.show_stories
         )
 
-    @staticmethod
-    def jobs() -> Sequence[Job] | ResponseError:
-        return HNClient._do_work(
+    @classmethod
+    def jobs(cls) -> Sequence[Job] | ResponseError:
+        return cls._do_work(
             Inspector.job_stories
         )
 
-    @staticmethod
+    @classmethod
     def get(
-        id : int | str
+        cls
+        , id : int | str
         , retry_count : int | None = None
     ) -> ItemT | ResponseError:
         match id:
@@ -130,9 +133,10 @@ class HNClient:
             case _:
                 raise ValueError(f"`{id}` : {type(id)} != (int | str)!")
 
-    @staticmethod
+    @classmethod
     def expand(
-        item : ItemT | Sequence[StoryId]
+        cls
+        , item : ItemT | Sequence[StoryId]
         , attr='kids'
         , depth=1
     ) -> Sequence[Comment]:
@@ -146,16 +150,24 @@ class HNClient:
         if data is None or not data:
             return Sequence([])
 
-        return HNClient._do_work(
+        return cls._do_work(
             data=data
         )
 
-    @staticmethod
-    def updates() -> Updated:
+    @classmethod
+    def updates(cls) -> Updated:
         raise NotImplementedError(
             "Need to modify Aggregator.*agg attr handling before "
             "calling this function or things will explode!"
         )
-        return HNClient._do_work(
+        return cls._do_work(
             Inspector.get_updates
         )
+
+class ParallelHNClient(HNClient):
+    AggF = Aggregator.pagg
+    expand_ids = True
+
+class SequentialHNClient(HNClient):
+    AggF = Aggregator.sagg
+    expand_ids = True
